@@ -8,7 +8,11 @@
 
 <body>
 
-<header>📊 Smart Inventory</header>
+<div style="position:absolute; top:20px; right:20px;">
+  <span id="userName"></span>
+  <button id="logoutBtn" class="btn">Logout</button>
+</div>
+  <header>📊 Smart Inventory</header>
 
 <div class="container">
 
@@ -77,6 +81,6 @@
 <button onclick="showSection('report',this)">📊 Report</button>
 </div>
 
-<script src="script.js"></script>
+<script type="module" src="script.js"></script>
 </body>
   </html>
