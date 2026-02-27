@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Inventory</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>📊 Smart Inventory</header>
+
+<div class="container">
+
+<!-- HOME -->
+<div id="home" class="section active">
+<div class="cards">
+<div class="card">
+<h3>📦 Products</h3>
+<p id="totalProducts">0</p>
+</div>
+<div class="card">
+<h3>⚠️ Low Stock</h3>
+<p id="lowStock" class="red">0</p>
+</div>
+<div class="card">
+<h3>📅 This Month Revenue</h3>
+<p id="monthRevenue" class="green">₹0</p>
+</div>
+<div class="card">
+<h3>📈 This Month Profit</h3>
+<p id="monthProfit" class="green">₹0</p>
+</div>
+</div>
+</div>
+
+<!-- PRODUCTS -->
+<div id="products" class="section"></div>
+
+<!-- SALES -->
+<div id="sales" class="section"></div>
+
+<!-- REPORT -->
+<div id="report" class="section"></div>
+
+</div>
+
+<div class="fab" id="fabBtn">＋</div>
+
+<!-- PRODUCT MODAL -->
+<div class="modal" id="productModal">
+<div class="modal-content">
+<h3 id="modalTitle">Add Product</h3>
+<input id="name" placeholder="Product Name">
+<input id="buy" type="number" placeholder="Buying Price">
+<input id="sell" type="number" placeholder="Selling Price">
+<input id="stock" type="number" placeholder="Stock Quantity">
+<button class="primary" id="saveBtn">Save</button>
+<button class="danger" onclick="closeProductModal()">Cancel</button>
+</div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal" id="deleteModal">
+<div class="modal-content">
+<h3>⚠ Confirm Delete</h3>
+<button class="danger" id="confirmDeleteBtn">Yes Delete</button>
+<button class="primary" onclick="closeDeleteModal()">Cancel</button>
+</div>
+</div>
+
+<!-- NAV -->
+<div class="tabs">
+<button onclick="showSection('home',this)" class="active">🏠 Home</button>
+<button onclick="showSection('products',this)">📦 Products</button>
+<button onclick="showSection('sales',this)">🛒 Sales</button>
+<button onclick="showSection('report',this)">📊 Report</button>
+</div>
+
+<script src="script.js"></script>
+</body>
+  </html>
