@@ -1,113 +1,197 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Smart Inventory</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Inventory – Dashboard</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
 </head>
+<body class="dashboard-page">
 
-<body>
+  <!-- ══════════════ HEADER ══════════════ -->
+  <header class="app-header">
+    <div class="header-left">
+      <svg class="header-logo" width="28" height="28" viewBox="0 0 48 48" fill="none">
+        <rect width="48" height="48" rx="10" fill="#6C63FF"/>
+        <rect x="10" y="14" width="12" height="12" rx="2" fill="white" opacity="0.9"/>
+        <rect x="26" y="14" width="12" height="12" rx="2" fill="white" opacity="0.6"/>
+        <rect x="10" y="30" width="12" height="8" rx="2" fill="white" opacity="0.6"/>
+        <rect x="26" y="30" width="12" height="8" rx="2" fill="white" opacity="0.9"/>
+      </svg>
+      <span class="header-title">Smart Inventory</span>
+    </div>
+    <div class="header-right">
+      <span id="user-name" class="user-name"></span>
+      <button id="logout-btn" class="logout-btn" title="Sign out">
+        <span class="material-icons-round" style="font-size:18px;">logout</span>
+      </button>
+    </div>
+  </header>
 
-<header class="topbar">
+  <!-- ══════════════ MAIN CONTENT ══════════════ -->
+  <main class="app-main">
 
-<div class="logo">Smart Inventory</div>
+    <!-- ── PRODUCTS TAB ── -->
+    <section id="tab-products" class="tab-section active">
+      <div class="search-bar-wrap">
+        <span class="material-icons-round search-icon">search</span>
+        <input id="product-search" type="text" class="search-input" placeholder="Search products…"/>
+      </div>
+      <div id="product-list" class="product-grid"></div>
+      <p id="products-empty" class="empty-state hidden">No products found.</p>
+    </section>
 
-<div class="account">
-<span id="userName"></span>
-<button id="logoutBtn">Logout</button>
-</div>
+    <!-- ── SALES TAB ── -->
+    <section id="tab-sales" class="tab-section hidden">
+      <div class="search-bar-wrap">
+        <span class="material-icons-round search-icon">search</span>
+        <input id="sales-search" type="text" class="search-input" placeholder="Search products…"/>
+      </div>
+      <div id="sales-list" class="product-grid"></div>
+      <p id="sales-empty" class="empty-state hidden">No products found.</p>
+    </section>
 
-</header>
+    <!-- ── REPORTS TAB ── -->
+    <section id="tab-reports" class="tab-section hidden">
+      <div class="reports-grid">
+        <div class="report-card">
+          <span class="material-icons-round report-icon revenue-icon">trending_up</span>
+          <div class="report-label">Monthly Revenue</div>
+          <div id="monthly-revenue" class="report-value">$0.00</div>
+        </div>
+        <div class="report-card">
+          <span class="material-icons-round report-icon profit-icon">savings</span>
+          <div class="report-label">Monthly Profit</div>
+          <div id="monthly-profit" class="report-value">$0.00</div>
+        </div>
+      </div>
+      <div class="report-period">
+        <span class="material-icons-round" style="font-size:16px;vertical-align:middle;margin-right:4px;">calendar_today</span>
+        <span id="report-month-label"></span>
+      </div>
+    </section>
 
-<div class="app">
+  </main>
 
-<!-- PRODUCTS -->
+  <!-- ══════════════ FLOATING ADD BUTTON ══════════════ -->
+  <button id="fab" class="fab" title="Add product">
+    <span class="material-icons-round">add</span>
+  </button>
 
-<div id="productsSection" class="section active">
+  <!-- ══════════════ BOTTOM NAV ══════════════ -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="products">
+      <span class="material-icons-round">inventory_2</span>
+      <span class="nav-label">Products</span>
+    </button>
+    <button class="nav-btn" data-tab="sales">
+      <span class="material-icons-round">point_of_sale</span>
+      <span class="nav-label">Sales</span>
+    </button>
+    <button class="nav-btn" data-tab="reports">
+      <span class="material-icons-round">bar_chart</span>
+      <span class="nav-label">Reports</span>
+    </button>
+  </nav>
 
-<div class="search-box">
-<input id="productSearch" placeholder="Search products">
-</div>
+  <!-- ══════════════ PRODUCT MODAL (Add / Edit) ══════════════ -->
+  <div id="product-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modal-title" class="modal-heading">Add Product</h2>
+        <button id="modal-close" class="modal-close-btn" aria-label="Close">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <form id="product-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="input-name">Product Name</label>
+          <input id="input-name" class="form-input" type="text" placeholder="e.g. Wireless Mouse" required/>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="input-buy">Buy Price ($)</label>
+            <input id="input-buy" class="form-input" type="number" min="0" step="0.01" placeholder="0.00" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="input-sell">Sell Price ($)</label>
+            <input id="input-sell" class="form-input" type="number" min="0" step="0.01" placeholder="0.00" required/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="input-stock">Stock Quantity</label>
+          <input id="input-stock" class="form-input" type="number" min="0" placeholder="0" required/>
+        </div>
+        <p id="form-error" class="form-error hidden"></p>
+        <button type="submit" class="btn btn-primary btn-full" id="modal-submit-btn">Save Product</button>
+      </form>
+    </div>
+  </div>
 
-<div id="products"></div>
+  <!-- ══════════════ DELETE CONFIRM MODAL ══════════════ -->
+  <div id="delete-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card modal-card--sm">
+      <div class="modal-header">
+        <h2 class="modal-heading">Delete Product</h2>
+        <button id="delete-modal-close" class="modal-close-btn" aria-label="Close">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <p class="modal-body-text">Are you sure you want to delete <strong id="delete-product-name"></strong>? This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="delete-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="delete-confirm-btn" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
 
-</div>
+  <!-- ══════════════ SALE MODAL ══════════════ -->
+  <div id="sale-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-heading">Complete Sale</h2>
+        <button id="sale-modal-close" class="modal-close-btn" aria-label="Close">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <div class="sale-product-info">
+        <p id="sale-product-name" class="sale-product-name"></p>
+        <p id="sale-product-price" class="sale-product-price"></p>
+      </div>
+      <div class="sale-qty-row">
+        <label class="form-label">Quantity</label>
+        <div class="qty-controls">
+          <button id="qty-minus" class="qty-btn">
+            <span class="material-icons-round">remove</span>
+          </button>
+          <span id="qty-display" class="qty-display">1</span>
+          <button id="qty-plus" class="qty-btn">
+            <span class="material-icons-round">add</span>
+          </button>
+        </div>
+      </div>
+      <div class="sale-summary">
+        <div class="sale-summary-row">
+          <span>Revenue</span>
+          <span id="sale-revenue">$0.00</span>
+        </div>
+        <div class="sale-summary-row">
+          <span>Profit</span>
+          <span id="sale-profit">$0.00</span>
+        </div>
+      </div>
+      <p id="sale-error" class="form-error hidden"></p>
+      <button id="sale-confirm-btn" class="btn btn-primary btn-full">Complete Sale</button>
+    </div>
+  </div>
 
-<!-- SALES -->
+  <!-- ══════════════ TOAST ══════════════ -->
+  <div id="toast" class="toast hidden"></div>
 
-<div id="salesSection" class="section">
-
-<div class="search-box">
-<input id="salesSearch" placeholder="Search product to sell">
-</div>
-
-<div id="sales"></div>
-
-</div>
-
-<!-- REPORT -->
-
-<div id="reportSection" class="section">
-
-<div class="report-box">
-
-<div>
-<h3>Revenue</h3>
-<p id="monthRevenue">₹0</p>
-</div>
-
-<div>
-<h3>Profit</h3>
-<p id="monthProfit">₹0</p>
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-<button id="fabBtn" class="fab">+</button>
-
-<nav class="bottom-nav">
-
-<button onclick="showSection('productsSection',this)" class="active">Products</button>
-<button onclick="showSection('salesSection',this)">Sales</button>
-<button onclick="showSection('reportSection',this)">Reports</button>
-
-</nav>
-
-<div id="productModal" class="modal">
-
-<div class="modal-card">
-
-<h2 id="modalTitle">Add Product</h2>
-
-<input id="name" placeholder="Product name">
-<input id="buy" placeholder="Buy price">
-<input id="sell" placeholder="Sell price">
-<input id="stock" placeholder="Stock">
-
-<button id="saveBtn">Save</button>
-<button onclick="closeProductModal()">Cancel</button>
-
-</div>
-
-</div>
-
-<div id="deleteModal" class="modal">
-
-<div class="modal-card">
-
-<h2>Delete product?</h2>
-
-<button id="confirmDeleteBtn">Delete</button>
-<button onclick="closeDeleteModal()">Cancel</button>
-
-</div>
-
-</div>
-
-<script type="module" src="script.js"></script>
-
+  <!-- Firebase & App Logic -->
+  <script type="module" src="script.js"></script>
 </body>
-  </html>
+</html>
