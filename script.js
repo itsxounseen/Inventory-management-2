@@ -29,7 +29,7 @@ const db   = getFirestore(app);
 // STATE
 let currentUser    = null;
 let products       = [];
-let sales          = [];
+let allSales       = [];   // all sales for current user, filtered in JS
 let editingId      = null;
 let deleteTargetId = null;
 let saleProduct    = null;
@@ -49,10 +49,18 @@ const productsEmpty    = get("products-empty");
 const salesEmpty       = get("sales-empty");
 const productSearch    = get("product-search");
 const salesSearch      = get("sales-search");
-const monthlyRevenue   = get("monthly-revenue");
-const monthlyProfit    = get("monthly-profit");
-const reportMonthLabel = get("report-month-label");
 
+// Report elements
+const dailyRevenue      = get("daily-revenue");
+const dailyProfit       = get("daily-profit");
+const monthlyRevenue    = get("monthly-revenue");
+const monthlyProfit     = get("monthly-profit");
+const dailySalesCount   = get("daily-sales-count");
+const monthlySalesCount = get("monthly-sales-count");
+const reportTodayLabel  = get("report-today-label");
+const reportMonthLabel  = get("report-month-label");
+
+// Product modal
 const productModal    = get("product-modal");
 const modalTitle      = get("modal-title");
 const modalClose      = get("modal-close");
@@ -64,12 +72,14 @@ const inputStock      = get("input-stock");
 const formError       = get("form-error");
 const modalSubmitBtn  = get("modal-submit-btn");
 
+// Delete modal
 const deleteModal       = get("delete-modal");
 const deleteModalClose  = get("delete-modal-close");
 const deleteProductName = get("delete-product-name");
 const deleteCancelBtn   = get("delete-cancel-btn");
 const deleteConfirmBtn  = get("delete-confirm-btn");
 
+// Sale modal
 const saleModal        = get("sale-modal");
 const saleModalClose   = get("sale-modal-close");
 const saleProductName  = get("sale-product-name");
@@ -83,6 +93,7 @@ const saleProfitEl     = get("sale-profit");
 const saleError        = get("sale-error");
 const saleConfirmBtn   = get("sale-confirm-btn");
 
+// Logout modal
 const logoutModal      = get("logout-modal");
 const logoutCancelBtn  = get("logout-cancel-btn");
 const logoutConfirmBtn = get("logout-confirm-btn");
@@ -111,7 +122,14 @@ logoutConfirmBtn.addEventListener("click", async () => {
 
 // FIRESTORE LISTENERS
 function startListeners() {
-  // Products — simple query, sort client-side to avoid needing composite index
+  const now = new Date();
+
+  // Set report labels
+  const todayStr = now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+  reportTodayLabel.textContent = todayStr;
+  reportMonthLabel.textContent = now.toLocaleString("default", { month: "long", year: "numeric" });
+
+  // Products — no orderBy, sort client-side
   const prodQ = query(
     collection(db, "products"),
     where("userId", "==", currentUser.uid)
@@ -132,49 +150,65 @@ function startListeners() {
     showToast("Error loading products");
   });
 
-  // Sales — use Timestamp objects for date comparison (fixes reports)
-  const now  = new Date();
-  const from = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1));
-  const to   = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth() + 1, 1));
-
+  // Sales — load all for this user, filter by day/month in JS
+  // This avoids needing composite Firestore indexes
   const salesQ = query(
-    collection(db, "sales"),
-    where("userId",    "==", currentUser.uid),
-    where("createdAt", ">=", from),
-    where("createdAt", "<",  to)
-  );
-
-  unsubSales = onSnapshot(salesQ, snap => {
-    sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderReports();
-  }, err => {
-    // If index not ready yet, fall back to fetching all sales and filtering
-    console.warn("Sales query error (will retry without date filter):", err.message);
-    fallbackSalesListener();
-  });
-
-  reportMonthLabel.textContent = now.toLocaleString("default", { month: "long", year: "numeric" });
-}
-
-// Fallback: load all sales, filter by month in JS (used if Firestore index not ready)
-function fallbackSalesListener() {
-  const allSalesQ = query(
     collection(db, "sales"),
     where("userId", "==", currentUser.uid)
   );
-  unsubSales = onSnapshot(allSalesQ, snap => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth();
-    sales = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(s => {
-        if (!s.createdAt) return false;
-        const d = s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
-        return d.getFullYear() === y && d.getMonth() === m;
-      });
+
+  unsubSales = onSnapshot(salesQ, snap => {
+    allSales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderReports();
+  }, err => {
+    console.error("Sales error:", err.message);
   });
+}
+
+// REPORT CALCULATIONS
+function renderReports() {
+  const now = new Date();
+  const todayY = now.getFullYear();
+  const todayM = now.getMonth();
+  const todayD = now.getDate();
+
+  let dRevenue = 0, dProfit = 0, dCount = 0;
+  let mRevenue = 0, mProfit = 0, mCount = 0;
+
+  allSales.forEach(s => {
+    if (!s.createdAt) return;
+
+    // Convert Firestore Timestamp to JS Date
+    const d = s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
+
+    const sY = d.getFullYear();
+    const sM = d.getMonth();
+    const sD = d.getDate();
+
+    const rev = s.revenue || 0;
+    const prt = s.profit  || 0;
+
+    // Monthly
+    if (sY === todayY && sM === todayM) {
+      mRevenue += rev;
+      mProfit  += prt;
+      mCount++;
+
+      // Daily (subset of monthly)
+      if (sD === todayD) {
+        dRevenue += rev;
+        dProfit  += prt;
+        dCount++;
+      }
+    }
+  });
+
+  dailyRevenue.textContent   = inr(dRevenue);
+  dailyProfit.textContent    = inr(dProfit);
+  monthlyRevenue.textContent = inr(mRevenue);
+  monthlyProfit.textContent  = inr(mProfit);
+  dailySalesCount.textContent   = dCount;
+  monthlySalesCount.textContent = mCount;
 }
 
 // NAVIGATION
@@ -265,14 +299,6 @@ function buildSaleCard(p) {
     card.querySelector(".sale-card-btn").addEventListener("click", () => openSaleModal(p.id));
   }
   return card;
-}
-
-// RENDER: REPORTS
-function renderReports() {
-  const revenue = sales.reduce((s, x) => s + (x.revenue || 0), 0);
-  const profit  = sales.reduce((s, x) => s + (x.profit  || 0), 0);
-  monthlyRevenue.textContent = inr(revenue);
-  monthlyProfit.textContent  = inr(profit);
 }
 
 // SEARCH
@@ -381,16 +407,14 @@ function openSaleModal(id) {
   saleQty = 1;
   saleProductName.textContent  = saleProduct.name;
   saleProductPrice.textContent = "Default sell: " + inr(saleProduct.sellPrice) + "  |  Buy: " + inr(saleProduct.buyPrice);
-  saleCustomPrice.value = "";          // clear custom price
-  saleCustomPrice.placeholder = fmt(saleProduct.sellPrice) + " (default)";
+  saleCustomPrice.value        = "";
+  saleCustomPrice.placeholder  = fmt(saleProduct.sellPrice) + " (default)";
   updateSaleSummary();
   hideError(saleError);
   openModal(saleModal);
 }
 
 saleModalClose.addEventListener("click", () => closeModal(saleModal));
-
-// Recalculate summary whenever custom price changes
 saleCustomPrice.addEventListener("input", updateSaleSummary);
 
 qtyMinus.addEventListener("click", () => {
@@ -408,9 +432,9 @@ function getEffectiveSellPrice() {
 function updateSaleSummary() {
   if (!saleProduct) return;
   qtyDisplay.textContent    = saleQty;
-  const sellPrice = getEffectiveSellPrice();
-  saleRevenueEl.textContent = inr(sellPrice * saleQty);
-  saleProfitEl.textContent  = inr((sellPrice - saleProduct.buyPrice) * saleQty);
+  const sp = getEffectiveSellPrice();
+  saleRevenueEl.textContent = inr(sp * saleQty);
+  saleProfitEl.textContent  = inr((sp - saleProduct.buyPrice) * saleQty);
 }
 
 saleConfirmBtn.addEventListener("click", async () => {
@@ -460,7 +484,6 @@ function closeModal(modal) {
   modal.classList.add("hidden");
   document.body.style.overflow = "";
 }
-
 [productModal, deleteModal, saleModal, logoutModal].forEach(modal => {
   modal.addEventListener("click", e => { if (e.target === modal) closeModal(modal); });
 });
