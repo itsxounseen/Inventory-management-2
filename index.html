@@ -1,21 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Login - Inventory</title>
+  <title>Inventory Manager</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="login-body">
 
-  <div class="login-card">
-    <h1>Inventory Manager</h1>
-    <p class="subtitle">Sign in to manage your inventory</p>
+<body class="login-page">
 
-    <button id="googleLogin" class="google-btn">
-      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg">
-      Continue with Google
-    </button>
+  <div class="login-wrapper">
+
+      <div class="login-card">
+
+          <h1 class="login-title">Inventory Manager</h1>
+          <p class="login-description">
+            Sign in to access your inventory dashboard
+          </p>
+
+          <button id="googleLogin" class="google-login">
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg">
+              Continue with Google
+          </button>
+
+          <p class="login-note">
+            Secure authentication powered by Google
+          </p>
+
+      </div>
+
   </div>
 
   <script type="module" src="script.js"></script>
+
 </body>
 </html>
