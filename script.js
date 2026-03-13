@@ -2,8 +2,12 @@ import { initializeApp } from
 "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 
 import { getAuth, GoogleAuthProvider, signInWithPopup,
-onAuthStateChanged, signOut } from 
-"https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+onAuthStateChanged, signOut } 
+from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+
+import { getFirestore, collection, addDoc, getDocs, query, where,
+deleteDoc, doc, updateDoc } 
+from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
 /* FIREBASE CONFIG */
 const firebaseConfig = {
@@ -19,47 +23,55 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth();
 const provider = new GoogleAuthProvider();
+const db = getFirestore(app);
+
+/* LOGIN / LOGOUT */
 
 document.addEventListener("DOMContentLoaded", () => {
 
   const loginBtn = document.getElementById("googleLogin");
   const logoutBtn = document.getElementById("logoutBtn");
 
-  /* LOGIN */
-  if (loginBtn) {
-    loginBtn.addEventListener("click", async () => {
-      await signInWithPopup(auth, provider);
-      window.location.href = "dashboard.html";
+  if(loginBtn){
+    loginBtn.addEventListener("click", async ()=>{
+      await signInWithPopup(auth,provider);
+      window.location.href="dashboard.html";
     });
   }
 
-  /* LOGOUT */
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", async () => {
+  if(logoutBtn){
+    logoutBtn.addEventListener("click", async ()=>{
       await signOut(auth);
-      window.location.href = "index.html";
+      window.location.href="index.html";
     });
   }
 
 });
 
 /* AUTH CHECK */
-onAuthStateChanged(auth, (user) => {
 
-  if (window.location.pathname.includes("dashboard")) {
+onAuthStateChanged(auth,(user)=>{
 
-    if (!user) {
-      window.location.href = "index.html";
-    } else {
-      const userName = document.getElementById("userName");
-      if (userName) userName.innerText = user.displayName;
+  if(window.location.pathname.includes("dashboard")){
+
+    if(!user){
+      window.location.href="index.html";
+    }else{
+      const userName=document.getElementById("userName");
+      if(userName) userName.innerText=user.displayName;
+      startInventory();
     }
 
   }
 
 });
-document.addEventListener("DOMContentLoaded", function(){
-  // ---- GET ALL ELEMENTS ONCE ----
+
+/* ================= INVENTORY APP ================= */
+
+function startInventory(){
+
+document.addEventListener("DOMContentLoaded", async function(){
+
 const name = document.getElementById("name");
 const buy = document.getElementById("buy");
 const sell = document.getElementById("sell");
@@ -74,21 +86,40 @@ const lowStock = document.getElementById("lowStock");
 const monthRevenue = document.getElementById("monthRevenue");
 const monthProfit = document.getElementById("monthProfit");
 
-let productData = JSON.parse(localStorage.getItem("inventory_products")) || [];
+let productData=[];
 let salesHistory = JSON.parse(localStorage.getItem("inventory_sales")) || [];
 
-let editId = null;
-let deleteId = null;
-let selected = null;
-let qty = 1;
+let editId=null;
+let deleteId=null;
+let selected=null;
+let qty=1;
 
-function save(){
-localStorage.setItem("inventory_products", JSON.stringify(productData));
-localStorage.setItem("inventory_sales", JSON.stringify(salesHistory));
+/* LOAD PRODUCTS FROM FIRESTORE */
+
+async function loadProducts(){
+
+const q=query(
+collection(db,"products"),
+where("userId","==",auth.currentUser.uid)
+);
+
+const snapshot=await getDocs(q);
+
+productData=[];
+
+snapshot.forEach((doc)=>{
+productData.push({id:doc.id,...doc.data()});
+});
+
+render();
+
 }
 
+await loadProducts();
+
 /* NAVIGATION */
-window.showSection = function(id,btn){
+
+window.showSection=function(id,btn){
 document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
 document.getElementById(id).classList.add("active");
 document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
@@ -97,9 +128,10 @@ render();
 };
 
 /* OPEN MODAL */
-document.getElementById("fabBtn").addEventListener("click", function(){
+
+document.getElementById("fabBtn").addEventListener("click",function(){
 editId=null;
-document.getElementById("modalTitle").innerText="Add Product";
+modalTitle.innerText="Add Product";
 name.value=""; buy.value=""; sell.value=""; stock.value="";
 productModal.style.display="flex";
 });
@@ -112,8 +144,9 @@ window.closeDeleteModal=function(){
 deleteModal.style.display="none";
 };
 
-/* SAVE PRODUCT (FIXED) */
-document.getElementById("saveBtn").addEventListener("click", function(){
+/* SAVE PRODUCT */
+
+document.getElementById("saveBtn").addEventListener("click",async function(){
 
 let n=name.value.trim();
 if(!n) return;
@@ -123,23 +156,37 @@ let s=+sell.value;
 let st=+stock.value;
 
 if(editId){
-let p=productData.find(x=>x.id===editId);
-if(p){ p.name=n; p.buy=b; p.sell=s; p.stock=st; }
+
+await updateDoc(doc(db,"products",editId),{
+name:n,buy:b,sell:s,stock:st
+});
+
 }else{
-productData.push({id:Date.now(),name:n,buy:b,sell:s,stock:st});
+
+await addDoc(collection(db,"products"),{
+name:n,
+buy:b,
+sell:s,
+stock:st,
+userId:auth.currentUser.uid
+});
+
 }
 
-save();
 closeProductModal();
-render();
+await loadProducts();
+
 });
 
 /* DELETE */
-document.getElementById("confirmDeleteBtn").addEventListener("click", function(){
-productData=productData.filter(p=>p.id!==deleteId);
-save();
+
+document.getElementById("confirmDeleteBtn").addEventListener("click",async function(){
+
+await deleteDoc(doc(db,"products",deleteId));
+
 closeDeleteModal();
-render();
+await loadProducts();
+
 });
 
 window.openDelete=function(id){
@@ -157,6 +204,7 @@ productModal.style.display="flex";
 };
 
 /* SALES */
+
 window.selectProduct=function(id){
 selected=productData.find(p=>p.id===id);
 qty=1;
@@ -169,9 +217,15 @@ if(qty<1) qty=1;
 render();
 };
 
-window.completeSale=function(){
+window.completeSale=async function(){
+
 if(!selected || selected.stock<qty) return;
-selected.stock-=qty;
+
+const newStock=selected.stock-qty;
+
+await updateDoc(doc(db,"products",selected.id),{
+stock:newStock
+});
 
 salesHistory.push({
 productId:selected.id,
@@ -180,19 +234,24 @@ profit:(selected.sell-selected.buy)*qty,
 date:new Date().toISOString()
 });
 
-save();
+localStorage.setItem("inventory_sales",JSON.stringify(salesHistory));
+
 selected=null;
 qty=1;
-render();
+
+await loadProducts();
+
 };
 
 /* RENDER */
+
 function render(){
 
 totalProducts.innerText=productData.length;
 lowStock.innerText=productData.filter(p=>p.stock<20).length;
 
 let now=new Date();
+
 let monthSales=salesHistory.filter(s=>{
 let d=new Date(s.date);
 return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
@@ -205,59 +264,80 @@ monthRevenue.innerText="₹"+monthRev;
 monthProfit.innerText="₹"+monthProf;
 
 /* PRODUCTS */
+
 document.getElementById("products").innerHTML =
 productData.map(p=>{
-let low = p.stock < 20 ? "stock-low" : "";
+
+let low=p.stock<20?"stock-low":"";
+
 return `
 <div class="product-card">
-    <div class="product-top">
-        <div class="product-info">
-            <div class="product-name">📦 ${p.name}</div>
-            <div class="price-line">
-                Buy ₹${p.buy} | Sell ₹${p.sell}
-            </div>
-        </div>
-        <div class="action-icons">
-            <button class="icon-btn edit" onclick="openEdit(${p.id})">✏️</button>
-            <button class="icon-btn delete" onclick="openDelete(${p.id})">🗑</button>
-        </div>
-    </div>
-    <div class="stock-badge ${low}">
-        Stock: ${p.stock}
-    </div>
+<div class="product-top">
+<div class="product-info">
+<div class="product-name">${p.name}</div>
+<div class="price-line">
+Buy ₹${p.buy} | Sell ₹${p.sell}
+</div>
+</div>
+
+<div class="action-icons">
+<button class="icon-btn edit" onclick="openEdit('${p.id}')">Edit</button>
+<button class="icon-btn delete" onclick="openDelete('${p.id}')">Delete</button>
+</div>
+
+</div>
+
+<div class="stock-badge ${low}">
+Stock: ${p.stock}
+</div>
+
 </div>
 `;
+
 }).join("");
 
 /* SALES */
+
 document.getElementById("sales").innerHTML =
 productData.map(p=>{
-let active=selected && selected.id===p.id ? "active":"";
-return `<div class="sales-product ${active}" onclick="selectProduct(${p.id})">
-🛒 ${p.name} (₹${p.sell}) - Stock ${p.stock}
+
+let active=selected && selected.id===p.id?"active":"";
+
+return `<div class="sales-product ${active}" onclick="selectProduct('${p.id}')">
+${p.name} (₹${p.sell}) - Stock ${p.stock}
 </div>`;
-}).join("") + (selected?`
+
+}).join("")+(selected?`
+
 <div style="text-align:center;margin-top:10px;">Selected: ${selected.name}</div>
+
 <div class="qty-box">
 <div class="qty-btn" onclick="changeQty(-1)">−</div>
 <div>${qty}</div>
 <div class="qty-btn" onclick="changeQty(1)">+</div>
 </div>
+
 <button class="primary" onclick="completeSale()">Complete Sale</button>
+
 `:"");
 
 /* REPORT */
+
 document.getElementById("report").innerHTML=`
 <div class="product-card">
 <h3>This Month Revenue</h3>
 <p class="green">₹${monthRev}</p>
 </div>
+
 <div class="product-card">
 <h3>This Month Profit</h3>
 <p class="green">₹${monthProf}</p>
-</div>`;
+</div>
+`;
+
 }
 
 render();
 
 });
+                          }
