@@ -148,7 +148,7 @@
     </div>
   </div>
 
-  <!-- ══════════════ SALE MODAL ══════════════ -->
+  <!-- SALE MODAL -->
   <div id="sale-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -171,6 +171,19 @@
           <button id="qty-plus" class="qty-btn">
             <span class="material-icons-round">add</span>
           </button>
+        </div>
+      </div>
+      <!-- Custom sell price -->
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label" for="sale-custom-price">
+          Selling Price (&#8377;)
+          <span class="price-tag-hint">leave blank to use default</span>
+        </label>
+        <div class="custom-price-wrap">
+          <span class="custom-price-symbol">&#8377;</span>
+          <input id="sale-custom-price" class="form-input custom-price-input"
+            type="number" min="0" step="0.01"
+            placeholder="Default price"/>
         </div>
       </div>
       <div class="sale-summary">
