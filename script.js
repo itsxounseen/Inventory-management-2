@@ -16,14 +16,14 @@ import {
   serverTimestamp, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// ── REPLACE WITH YOUR FIREBASE CONFIG ──
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAKEwR483coxO4u_v5wadTK0vZ9PvVUioU",
+  authDomain: "inventory-management-f3ea9.firebaseapp.com",
+  projectId: "inventory-management-f3ea9",
+  storageBucket: "inventory-management-f3ea9.firebasestorage.app",
+  messagingSenderId: "812103080140",
+  appId: "1:812103080140:web:83918712ffbf0343bf8a69",
+  measurementId: "G-RQJCGB3FCR"
 };
 
 const app  = initializeApp(firebaseConfig);
