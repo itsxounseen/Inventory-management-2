@@ -1,86 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Inventory</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div style="position:absolute; top:20px; right:20px;">
-  <span id="userName"></span>
-  <button id="logoutBtn" class="btn">Logout</button>
-</div>
-  <header>📊 Smart Inventory</header>
+<header class="topbar">
 
-<div class="container">
+<div class="logo">Smart Inventory</div>
 
-<!-- HOME -->
-<div id="home" class="section active">
-<div class="cards">
-<div class="card">
-<h3>📦 Products</h3>
-<p id="totalProducts">0</p>
+<div class="account">
+<span id="userName"></span>
+<button id="logoutBtn">Logout</button>
 </div>
-<div class="card">
-<h3>⚠️ Low Stock</h3>
-<p id="lowStock" class="red">0</p>
-</div>
-<div class="card">
-<h3>📅 This Month Revenue</h3>
-<p id="monthRevenue" class="green">₹0</p>
-</div>
-<div class="card">
-<h3>📈 This Month Profit</h3>
-<p id="monthProfit" class="green">₹0</p>
-</div>
-</div>
-</div>
+
+</header>
+
+<div class="app">
 
 <!-- PRODUCTS -->
-<div id="products" class="section"></div>
+
+<div id="productsSection" class="section active">
+
+<div class="search-box">
+<input id="productSearch" placeholder="Search products">
+</div>
+
+<div id="products"></div>
+
+</div>
 
 <!-- SALES -->
-<div id="sales" class="section"></div>
+
+<div id="salesSection" class="section">
+
+<div class="search-box">
+<input id="salesSearch" placeholder="Search product to sell">
+</div>
+
+<div id="sales"></div>
+
+</div>
 
 <!-- REPORT -->
-<div id="report" class="section"></div>
+
+<div id="reportSection" class="section">
+
+<div class="report-box">
+
+<div>
+<h3>Revenue</h3>
+<p id="monthRevenue">₹0</p>
+</div>
+
+<div>
+<h3>Profit</h3>
+<p id="monthProfit">₹0</p>
+</div>
 
 </div>
 
-<div class="fab" id="fabBtn">＋</div>
-
-<!-- PRODUCT MODAL -->
-<div class="modal" id="productModal">
-<div class="modal-content">
-<h3 id="modalTitle">Add Product</h3>
-<input id="name" placeholder="Product Name">
-<input id="buy" type="number" placeholder="Buying Price">
-<input id="sell" type="number" placeholder="Selling Price">
-<input id="stock" type="number" placeholder="Stock Quantity">
-<button class="primary" id="saveBtn">Save</button>
-<button class="danger" onclick="closeProductModal()">Cancel</button>
-</div>
 </div>
 
-<!-- DELETE MODAL -->
-<div class="modal" id="deleteModal">
-<div class="modal-content">
-<h3>⚠ Confirm Delete</h3>
-<button class="danger" id="confirmDeleteBtn">Yes Delete</button>
-<button class="primary" onclick="closeDeleteModal()">Cancel</button>
-</div>
 </div>
 
-<!-- NAV -->
-<div class="tabs">
-<button onclick="showSection('home',this)" class="active">🏠 Home</button>
-<button onclick="showSection('products',this)">📦 Products</button>
-<button onclick="showSection('sales',this)">🛒 Sales</button>
-<button onclick="showSection('report',this)">📊 Report</button>
+<button id="fabBtn" class="fab">+</button>
+
+<nav class="bottom-nav">
+
+<button onclick="showSection('productsSection',this)" class="active">Products</button>
+<button onclick="showSection('salesSection',this)">Sales</button>
+<button onclick="showSection('reportSection',this)">Reports</button>
+
+</nav>
+
+<div id="productModal" class="modal">
+
+<div class="modal-card">
+
+<h2 id="modalTitle">Add Product</h2>
+
+<input id="name" placeholder="Product name">
+<input id="buy" placeholder="Buy price">
+<input id="sell" placeholder="Sell price">
+<input id="stock" placeholder="Stock">
+
+<button id="saveBtn">Save</button>
+<button onclick="closeProductModal()">Cancel</button>
+
+</div>
+
+</div>
+
+<div id="deleteModal" class="modal">
+
+<div class="modal-card">
+
+<h2>Delete product?</h2>
+
+<button id="confirmDeleteBtn">Delete</button>
+<button onclick="closeDeleteModal()">Cancel</button>
+
+</div>
+
 </div>
 
 <script type="module" src="script.js"></script>
+
 </body>
   </html>
