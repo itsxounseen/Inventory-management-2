@@ -9,7 +9,7 @@ import {
   getFirestore, collection, doc,
   addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where,
-  serverTimestamp
+  serverTimestamp, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -77,6 +77,7 @@ const saleProductPrice = get("sale-product-price");
 const qtyMinus         = get("qty-minus");
 const qtyPlus          = get("qty-plus");
 const qtyDisplay       = get("qty-display");
+const saleCustomPrice  = get("sale-custom-price");
 const saleRevenueEl    = get("sale-revenue");
 const saleProfitEl     = get("sale-profit");
 const saleError        = get("sale-error");
@@ -92,10 +93,7 @@ const tabSections = document.querySelectorAll(".tab-section");
 
 // AUTH
 onAuthStateChanged(auth, user => {
-  if (!user) {
-    window.location.href = "index.html";
-    return;
-  }
+  if (!user) { window.location.href = "index.html"; return; }
   currentUser = user;
   userName.textContent = user.displayName || user.email || "User";
   startListeners();
@@ -113,7 +111,7 @@ logoutConfirmBtn.addEventListener("click", async () => {
 
 // FIRESTORE LISTENERS
 function startListeners() {
-  // No orderBy to avoid needing a composite index - sort client-side
+  // Products — simple query, sort client-side to avoid needing composite index
   const prodQ = query(
     collection(db, "products"),
     where("userId", "==", currentUser.uid)
@@ -130,13 +128,14 @@ function startListeners() {
     renderProducts(productSearch.value.trim());
     renderSalesTab(salesSearch.value.trim());
   }, err => {
-    console.error("Products listener error:", err.message);
+    console.error("Products error:", err.message);
     showToast("Error loading products");
   });
 
+  // Sales — use Timestamp objects for date comparison (fixes reports)
   const now  = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const from = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  const to   = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth() + 1, 1));
 
   const salesQ = query(
     collection(db, "sales"),
@@ -149,10 +148,33 @@ function startListeners() {
     sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderReports();
   }, err => {
-    console.error("Sales listener error:", err.message);
+    // If index not ready yet, fall back to fetching all sales and filtering
+    console.warn("Sales query error (will retry without date filter):", err.message);
+    fallbackSalesListener();
   });
 
   reportMonthLabel.textContent = now.toLocaleString("default", { month: "long", year: "numeric" });
+}
+
+// Fallback: load all sales, filter by month in JS (used if Firestore index not ready)
+function fallbackSalesListener() {
+  const allSalesQ = query(
+    collection(db, "sales"),
+    where("userId", "==", currentUser.uid)
+  );
+  unsubSales = onSnapshot(allSalesQ, snap => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    sales = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => {
+        if (!s.createdAt) return false;
+        const d = s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
+        return d.getFullYear() === y && d.getMonth() === m;
+      });
+    renderReports();
+  });
 }
 
 // NAVIGATION
@@ -358,7 +380,9 @@ function openSaleModal(id) {
   if (!saleProduct) return;
   saleQty = 1;
   saleProductName.textContent  = saleProduct.name;
-  saleProductPrice.textContent = "Sell: " + inr(saleProduct.sellPrice) + "  |  Buy: " + inr(saleProduct.buyPrice);
+  saleProductPrice.textContent = "Default sell: " + inr(saleProduct.sellPrice) + "  |  Buy: " + inr(saleProduct.buyPrice);
+  saleCustomPrice.value = "";          // clear custom price
+  saleCustomPrice.placeholder = fmt(saleProduct.sellPrice) + " (default)";
   updateSaleSummary();
   hideError(saleError);
   openModal(saleModal);
@@ -366,43 +390,57 @@ function openSaleModal(id) {
 
 saleModalClose.addEventListener("click", () => closeModal(saleModal));
 
+// Recalculate summary whenever custom price changes
+saleCustomPrice.addEventListener("input", updateSaleSummary);
+
 qtyMinus.addEventListener("click", () => {
   if (saleQty > 1) { saleQty--; updateSaleSummary(); }
 });
-
 qtyPlus.addEventListener("click", () => {
   if (saleProduct && saleQty < saleProduct.stock) { saleQty++; updateSaleSummary(); }
 });
 
+function getEffectiveSellPrice() {
+  const custom = parseFloat(saleCustomPrice.value);
+  return (!isNaN(custom) && custom >= 0) ? custom : saleProduct.sellPrice;
+}
+
 function updateSaleSummary() {
+  if (!saleProduct) return;
   qtyDisplay.textContent    = saleQty;
-  saleRevenueEl.textContent = inr(saleProduct.sellPrice * saleQty);
-  saleProfitEl.textContent  = inr((saleProduct.sellPrice - saleProduct.buyPrice) * saleQty);
+  const sellPrice = getEffectiveSellPrice();
+  saleRevenueEl.textContent = inr(sellPrice * saleQty);
+  saleProfitEl.textContent  = inr((sellPrice - saleProduct.buyPrice) * saleQty);
 }
 
 saleConfirmBtn.addEventListener("click", async () => {
   if (!saleProduct) return;
   if (saleQty < 1 || saleQty > saleProduct.stock) return showError(saleError, "Invalid quantity.");
 
+  const sellPrice = getEffectiveSellPrice();
+  if (sellPrice < 0) return showError(saleError, "Selling price cannot be negative.");
+
   saleConfirmBtn.disabled    = true;
   saleConfirmBtn.textContent = "Processing...";
   hideError(saleError);
 
   const newStock = saleProduct.stock - saleQty;
-  const revenue  = saleProduct.sellPrice * saleQty;
-  const profit   = (saleProduct.sellPrice - saleProduct.buyPrice) * saleQty;
+  const revenue  = sellPrice * saleQty;
+  const profit   = (sellPrice - saleProduct.buyPrice) * saleQty;
 
   try {
     await updateDoc(doc(db, "products", saleProduct.id), { stock: newStock });
     await addDoc(collection(db, "sales"), {
-      userId: currentUser.uid,
-      productId: saleProduct.id,
+      userId:      currentUser.uid,
+      productId:   saleProduct.id,
       productName: saleProduct.name,
-      quantity: saleQty,
-      revenue, profit,
-      createdAt: serverTimestamp()
+      quantity:    saleQty,
+      sellPrice,
+      revenue,
+      profit,
+      createdAt:   serverTimestamp()
     });
-    showToast("Sale recorded - " + inr(revenue) + " revenue");
+    showToast("Sale recorded - " + inr(revenue));
     closeModal(saleModal);
     saleProduct = null;
   } catch (err) {
@@ -445,18 +483,18 @@ function inr(n) {
   const val = parseFloat(n) || 0;
   return "\u20B9" + val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
+function fmt(n) {
+  return (parseFloat(n) || 0).toFixed(2);
+}
 function escHtml(str) {
   const d = document.createElement("div");
   d.textContent = str;
   return d.innerHTML;
 }
-
 function showError(el, msg) {
   el.textContent = msg;
   el.classList.remove("hidden");
 }
-
 function hideError(el) {
   el.textContent = "";
   el.classList.add("hidden");
