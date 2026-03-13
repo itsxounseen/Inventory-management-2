@@ -1,15 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, where, deleteDoc, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-/* FIREBASE */
 const firebaseConfig = {
-  apiKey: "AIzaSyAKEwR483coxO4u_v5wadTK0vZ9PvVUioU",
-  authDomain: "inventory-management-f3ea9.firebaseapp.com",
-  projectId: "inventory-management-f3ea9",
-  storageBucket: "inventory-management-f3ea9.firebasestorage.app",
-  messagingSenderId: "812103080140",
-  appId: "1:812103080140:web:83918712ffbf0343bf8a69"
+apiKey: "PASTE_YOURS",
+authDomain: "PASTE_YOURS",
+projectId: "PASTE_YOURS"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -17,37 +13,37 @@ const auth = getAuth();
 const provider = new GoogleAuthProvider();
 const db = getFirestore(app);
 
-/* LOGIN */
+let productData=[];
+let editId=null;
+let deleteId=null;
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded",()=>{
 
-const loginBtn = document.getElementById("googleLogin");
-const logoutBtn = document.getElementById("logoutBtn");
+const loginBtn=document.getElementById("googleLogin");
+const logoutBtn=document.getElementById("logoutBtn");
 
 if(loginBtn){
-loginBtn.addEventListener("click", async ()=>{
-await signInWithPopup(auth, provider);
-window.location.href="dashboard.html";
-});
+loginBtn.onclick=async()=>{
+await signInWithPopup(auth,provider);
+location="dashboard.html";
+};
 }
 
 if(logoutBtn){
-logoutBtn.addEventListener("click", async ()=>{
+logoutBtn.onclick=async()=>{
 await signOut(auth);
-window.location.href="index.html";
-});
+location="index.html";
+};
 }
 
 });
 
-/* AUTH CHECK */
-
 onAuthStateChanged(auth,(user)=>{
 
-if(window.location.pathname.includes("dashboard")){
+if(location.pathname.includes("dashboard")){
 
 if(!user){
-window.location.href="index.html";
+location="index.html";
 }else{
 document.getElementById("userName").innerText=user.displayName;
 startInventory();
@@ -57,245 +53,118 @@ startInventory();
 
 });
 
-/* INVENTORY APP */
+function startInventory(){
 
-async function startInventory(){
+const productsDiv=document.getElementById("products");
 
-const name = document.getElementById("name");
-const buy = document.getElementById("buy");
-const sell = document.getElementById("sell");
-const stock = document.getElementById("stock");
+const q=query(collection(db,"products"),where("userId","==",auth.currentUser.uid));
 
-const productModal = document.getElementById("productModal");
-const deleteModal = document.getElementById("deleteModal");
-const modalTitle = document.getElementById("modalTitle");
-
-const totalProducts = document.getElementById("totalProducts");
-const lowStock = document.getElementById("lowStock");
-const monthRevenue = document.getElementById("monthRevenue");
-const monthProfit = document.getElementById("monthProfit");
-
-let productData=[];
-let salesHistory = JSON.parse(localStorage.getItem("inventory_sales")) || [];
-
-let editId=null;
-let deleteId=null;
-let selected=null;
-let qty=1;
-
-/* LOAD PRODUCTS */
-
-async function loadProducts(){
-
-const q=query(
-collection(db,"products"),
-where("userId","==",auth.currentUser.uid)
-);
-
-const snapshot=await getDocs(q);
+onSnapshot(q,(snap)=>{
 
 productData=[];
-snapshot.forEach(doc=>{
-productData.push({id:doc.id,...doc.data()});
+snap.forEach(d=>productData.push({id:d.id,...d.data()}));
+
+render();
+
 });
 
-render();
-
-}
-
-await loadProducts();
-
-/* NAVIGATION */
-
-window.showSection=function(id,btn){
-document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-document.getElementById(id).classList.add("active");
-document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
-btn.classList.add("active");
-render();
-};
-
-/* ADD PRODUCT */
-
-document.getElementById("fabBtn").addEventListener("click",function(){
-
+document.getElementById("fabBtn").onclick=()=>{
 editId=null;
-modalTitle.innerText="Add Product";
-
-name.value="";
-buy.value="";
-sell.value="";
-stock.value="";
-
-productModal.style.display="flex";
-
-});
-
-/* CLOSE MODALS */
-
-window.closeProductModal=function(){
-productModal.style.display="none";
+document.getElementById("productModal").style.display="flex";
 };
 
-window.closeDeleteModal=function(){
-deleteModal.style.display="none";
-};
+document.getElementById("saveBtn").onclick=async()=>{
 
-/* SAVE PRODUCT */
-
-document.getElementById("saveBtn").addEventListener("click",async function(){
-
-let n=name.value.trim();
-if(!n) return;
-
-let b=+buy.value;
-let s=+sell.value;
-let st=+stock.value;
+let name=document.getElementById("name").value;
+let buy=+document.getElementById("buy").value;
+let sell=+document.getElementById("sell").value;
+let stock=+document.getElementById("stock").value;
 
 if(editId){
 
-await updateDoc(doc(db,"products",editId),{
-name:n,buy:b,sell:s,stock:st
-});
+await updateDoc(doc(db,"products",editId),{name,buy,sell,stock});
 
 }else{
 
-await addDoc(collection(db,"products"),{
-name:n,
-buy:b,
-sell:s,
-stock:st,
-userId:auth.currentUser.uid
-});
+await addDoc(collection(db,"products"),{name,buy,sell,stock,userId:auth.currentUser.uid});
 
 }
 
 closeProductModal();
-await loadProducts();
 
-});
+};
 
-/* DELETE */
-
-document.getElementById("confirmDeleteBtn").addEventListener("click",async function(){
-
+document.getElementById("confirmDeleteBtn").onclick=async()=>{
 await deleteDoc(doc(db,"products",deleteId));
-
 closeDeleteModal();
-await loadProducts();
-
-});
-
-window.openDelete=function(id){
-deleteId=id;
-deleteModal.style.display="flex";
 };
-
-window.openEdit=function(id){
-
-let p=productData.find(x=>x.id===id);
-if(!p) return;
-
-editId=id;
-modalTitle.innerText="Edit Product";
-
-name.value=p.name;
-buy.value=p.buy;
-sell.value=p.sell;
-stock.value=p.stock;
-
-productModal.style.display="flex";
-
-};
-
-/* SALES */
-
-window.selectProduct=function(id){
-selected=productData.find(p=>p.id===id);
-qty=1;
-render();
-};
-
-window.changeQty=function(n){
-qty+=n;
-if(qty<1) qty=1;
-render();
-};
-
-window.completeSale=async function(){
-
-if(!selected || selected.stock<qty) return;
-
-const newStock=selected.stock-qty;
-
-await updateDoc(doc(db,"products",selected.id),{
-stock:newStock
-});
-
-salesHistory.push({
-productId:selected.id,
-revenue:selected.sell*qty,
-profit:(selected.sell-selected.buy)*qty,
-date:new Date().toISOString()
-});
-
-localStorage.setItem("inventory_sales",JSON.stringify(salesHistory));
-
-selected=null;
-qty=1;
-
-await loadProducts();
-
-};
-
-/* RENDER */
 
 function render(){
 
-totalProducts.innerText=productData.length;
-lowStock.innerText=productData.filter(p=>p.stock<20).length;
+productsDiv.innerHTML=
+productData.map(p=>`
 
-let now=new Date();
-
-let monthSales=salesHistory.filter(s=>{
-let d=new Date(s.date);
-return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
-});
-
-let monthRev=monthSales.reduce((a,b)=>a+b.revenue,0);
-let monthProf=monthSales.reduce((a,b)=>a+b.profit,0);
-
-monthRevenue.innerText="₹"+monthRev;
-monthProfit.innerText="₹"+monthProf;
-
-/* PRODUCTS */
-
-document.getElementById("products").innerHTML =
-productData.map(p=>{
-let low=p.stock<20?"stock-low":"";
-
-return `
 <div class="product-card">
+
 <div class="product-top">
-<div class="product-info">
-<div class="product-name">${p.name}</div>
-<div class="price-line">
+
+<div>
+<b>${p.name}</b><br>
 Buy ₹${p.buy} | Sell ₹${p.sell}
-</div>
 </div>
 
 <div class="action-icons">
-<button class="icon-btn edit" onclick="openEdit('${p.id}')">Edit</button>
-<button class="icon-btn delete" onclick="openDelete('${p.id}')">Delete</button>
-</div>
+<button onclick="editProduct('${p.id}')">✏️</button>
+<button onclick="deleteProduct('${p.id}')">🗑</button>
 </div>
 
-<div class="stock-badge ${low}">
+</div>
+
+<div class="stock-badge">
 Stock: ${p.stock}
 </div>
+
 </div>
-`;
-}).join("");
+
+`).join("");
 
 }
-  }
+
+window.editProduct=(id)=>{
+
+let p=productData.find(x=>x.id===id);
+editId=id;
+
+document.getElementById("name").value=p.name;
+document.getElementById("buy").value=p.buy;
+document.getElementById("sell").value=p.sell;
+document.getElementById("stock").value=p.stock;
+
+document.getElementById("productModal").style.display="flex";
+
+};
+
+window.deleteProduct=(id)=>{
+deleteId=id;
+document.getElementById("deleteModal").style.display="flex";
+};
+
+}
+
+window.closeProductModal=()=>{
+document.getElementById("productModal").style.display="none";
+};
+
+window.closeDeleteModal=()=>{
+document.getElementById("deleteModal").style.display="none";
+};
+
+window.showSection=(id,btn)=>{
+
+document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+
+document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.remove("active"));
+btn.classList.add("active");
+
+};
