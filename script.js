@@ -10,6 +10,7 @@ deleteDoc, doc, updateDoc }
 from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
 /* FIREBASE CONFIG */
+
 const firebaseConfig = {
   apiKey: "AIzaSyAKEwR483coxO4u_v5wadTK0vZ9PvVUioU",
   authDomain: "inventory-management-f3ea9.firebaseapp.com",
@@ -57,16 +58,19 @@ onAuthStateChanged(auth,(user)=>{
     if(!user){
       window.location.href="index.html";
     }else{
+
       const userName=document.getElementById("userName");
       if(userName) userName.innerText=user.displayName;
+
       initInventory();
+
     }
 
   }
 
 });
 
-/* ================= INVENTORY APP ================= */
+/* ================= INVENTORY ================= */
 
 async function initInventory(){
 
@@ -81,8 +85,6 @@ const modalTitle = document.getElementById("modalTitle");
 
 const totalProducts = document.getElementById("totalProducts");
 const lowStock = document.getElementById("lowStock");
-const monthRevenue = document.getElementById("monthRevenue");
-const monthProfit = document.getElementById("monthProfit");
 
 let productData=[];
 let editId=null;
@@ -111,24 +113,32 @@ render();
 
 await loadProducts();
 
-/* ADD PRODUCT */
+/* ADD PRODUCT BUTTON */
 
 document.getElementById("fabBtn").addEventListener("click",function(){
+
 editId=null;
+
 modalTitle.innerText="Add Product";
-name.value=""; buy.value=""; sell.value=""; stock.value="";
+
+name.value="";
+buy.value="";
+sell.value="";
+stock.value="";
+
 productModal.style.display="flex";
+
 });
 
 /* CLOSE MODALS */
 
 window.closeProductModal=function(){
 productModal.style.display="none";
-};
+}
 
 window.closeDeleteModal=function(){
 deleteModal.style.display="none";
-};
+}
 
 /* SAVE PRODUCT */
 
@@ -144,7 +154,10 @@ let st=+stock.value;
 if(editId){
 
 await updateDoc(doc(db,"products",editId),{
-name:n,buy:b,sell:s,stock:st
+name:n,
+buy:b,
+sell:s,
+stock:st
 });
 
 }else{
@@ -175,10 +188,14 @@ await loadProducts();
 
 });
 
+/* GLOBAL FUNCTIONS FOR BUTTONS */
+
 window.openDelete=function(id){
+
 deleteId=id;
 deleteModal.style.display="flex";
-};
+
+}
 
 window.openEdit=function(id){
 
@@ -186,6 +203,7 @@ let p=productData.find(x=>x.id===id);
 if(!p) return;
 
 editId=id;
+
 modalTitle.innerText="Edit Product";
 
 name.value=p.name;
@@ -195,7 +213,7 @@ stock.value=p.stock;
 
 productModal.style.display="flex";
 
-};
+}
 
 /* RENDER PRODUCTS */
 
@@ -204,7 +222,7 @@ function render(){
 totalProducts.innerText=productData.length;
 lowStock.innerText=productData.filter(p=>p.stock<20).length;
 
-document.getElementById("products").innerHTML =
+document.getElementById("products").innerHTML=
 productData.map(p=>{
 
 let low=p.stock<20?"stock-low":"";
@@ -222,8 +240,8 @@ Buy ₹${p.buy} | Sell ₹${p.sell}
 </div>
 
 <div class="action-icons">
-<button onclick="openEdit('${p.id}')">Edit</button>
-<button onclick="openDelete('${p.id}')">Delete</button>
+<button class="icon-btn edit" onclick="openEdit('${p.id}')">Edit</button>
+<button class="icon-btn delete" onclick="openDelete('${p.id}')">Delete</button>
 </div>
 
 </div>
@@ -239,4 +257,4 @@ Stock: ${p.stock}
 
 }
 
-}
+      }
