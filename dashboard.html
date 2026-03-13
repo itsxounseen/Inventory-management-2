@@ -56,6 +56,30 @@
 
     <!-- ── REPORTS TAB ── -->
     <section id="tab-reports" class="tab-section hidden">
+
+      <!-- Today -->
+      <div class="report-section-label">
+        <span class="material-icons-round">wb_sunny</span>
+        <span id="report-today-label"></span>
+      </div>
+      <div class="reports-grid">
+        <div class="report-card report-card--today">
+          <span class="material-icons-round report-icon revenue-icon">trending_up</span>
+          <div class="report-label">Today&#39;s Revenue</div>
+          <div id="daily-revenue" class="report-value">&#8377;0.00</div>
+        </div>
+        <div class="report-card report-card--today">
+          <span class="material-icons-round report-icon profit-icon">savings</span>
+          <div class="report-label">Today&#39;s Profit</div>
+          <div id="daily-profit" class="report-value">&#8377;0.00</div>
+        </div>
+      </div>
+
+      <!-- This Month -->
+      <div class="report-section-label" style="margin-top:8px;">
+        <span class="material-icons-round">calendar_month</span>
+        <span id="report-month-label"></span>
+      </div>
       <div class="reports-grid">
         <div class="report-card">
           <span class="material-icons-round report-icon revenue-icon">trending_up</span>
@@ -68,10 +92,26 @@
           <div id="monthly-profit" class="report-value">&#8377;0.00</div>
         </div>
       </div>
-      <div class="report-period">
-        <span class="material-icons-round" style="font-size:16px;vertical-align:middle;margin-right:4px;">calendar_today</span>
-        <span id="report-month-label"></span>
+
+      <!-- Sales count summary -->
+      <div class="report-summary-row">
+        <div class="report-summary-item">
+          <span class="material-icons-round" style="color:var(--primary)">receipt_long</span>
+          <div>
+            <div class="report-summary-val" id="daily-sales-count">0</div>
+            <div class="report-summary-lbl">Sales today</div>
+          </div>
+        </div>
+        <div class="report-summary-divider"></div>
+        <div class="report-summary-item">
+          <span class="material-icons-round" style="color:var(--success)">bar_chart</span>
+          <div>
+            <div class="report-summary-val" id="monthly-sales-count">0</div>
+            <div class="report-summary-lbl">Sales this month</div>
+          </div>
+        </div>
       </div>
+
     </section>
 
   </main>
