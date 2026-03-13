@@ -1,19 +1,15 @@
-// ════════════════════════════════════════════
-//  SMART INVENTORY – script.js
-//  Firebase Auth + Firestore, real-time sync
-// ════════════════════════════════════════════
+// Smart Inventory - script.js
 
 import { initializeApp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup,
-  signOut, onAuthStateChanged
+  getAuth, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   getFirestore, collection, doc,
   addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where,
-  serverTimestamp, orderBy
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -30,73 +26,71 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// ══════════════════════════════════════════
-//  STATE
-// ══════════════════════════════════════════
-let currentUser   = null;
-let products      = [];          // local cache from Firestore listener
-let sales         = [];          // local cache of this-month sales
-let editingId     = null;        // product id being edited
-let deleteTargetId = null;       // product id pending deletion
-let saleProduct   = null;        // product being sold
-let saleQty       = 1;
-let unsubProducts = null;        // Firestore listener unsubscribe
-let unsubSales    = null;
+// STATE
+let currentUser    = null;
+let products       = [];
+let sales          = [];
+let editingId      = null;
+let deleteTargetId = null;
+let saleProduct    = null;
+let saleQty        = 1;
+let unsubProducts  = null;
+let unsubSales     = null;
 
-// ══════════════════════════════════════════
-//  DOM REFERENCES
-// ══════════════════════════════════════════
-const $  = id => document.getElementById(id);
-const userName         = $("user-name");
-const logoutBtn        = $("logout-btn");
-const fab              = $("fab");
-const productList      = $("product-list");
-const salesList        = $("sales-list");
-const productsEmpty    = $("products-empty");
-const salesEmpty       = $("sales-empty");
-const productSearch    = $("product-search");
-const salesSearch      = $("sales-search");
-const monthlyRevenue   = $("monthly-revenue");
-const monthlyProfit    = $("monthly-profit");
-const reportMonthLabel = $("report-month-label");
+// DOM REFS
+const get = id => document.getElementById(id);
 
-// Modals
-const productModal     = $("product-modal");
-const modalTitle       = $("modal-title");
-const modalClose       = $("modal-close");
-const productForm      = $("product-form");
-const inputName        = $("input-name");
-const inputBuy         = $("input-buy");
-const inputSell        = $("input-sell");
-const inputStock       = $("input-stock");
-const formError        = $("form-error");
-const modalSubmitBtn   = $("modal-submit-btn");
+const userName         = get("user-name");
+const logoutBtn        = get("logout-btn");
+const fab              = get("fab");
+const productList      = get("product-list");
+const salesList        = get("sales-list");
+const productsEmpty    = get("products-empty");
+const salesEmpty       = get("sales-empty");
+const productSearch    = get("product-search");
+const salesSearch      = get("sales-search");
+const monthlyRevenue   = get("monthly-revenue");
+const monthlyProfit    = get("monthly-profit");
+const reportMonthLabel = get("report-month-label");
 
-const deleteModal      = $("delete-modal");
-const deleteModalClose = $("delete-modal-close");
-const deleteProductName = $("delete-product-name");
-const deleteCancelBtn  = $("delete-cancel-btn");
-const deleteConfirmBtn = $("delete-confirm-btn");
+const productModal    = get("product-modal");
+const modalTitle      = get("modal-title");
+const modalClose      = get("modal-close");
+const productForm     = get("product-form");
+const inputName       = get("input-name");
+const inputBuy        = get("input-buy");
+const inputSell       = get("input-sell");
+const inputStock      = get("input-stock");
+const formError       = get("form-error");
+const modalSubmitBtn  = get("modal-submit-btn");
 
-const saleModal        = $("sale-modal");
-const saleModalClose   = $("sale-modal-close");
-const saleProductName  = $("sale-product-name");
-const saleProductPrice = $("sale-product-price");
-const qtyMinus         = $("qty-minus");
-const qtyPlus          = $("qty-plus");
-const qtyDisplay       = $("qty-display");
-const saleRevenueEl    = $("sale-revenue");
-const saleProfitEl     = $("sale-profit");
-const saleError        = $("sale-error");
-const saleConfirmBtn   = $("sale-confirm-btn");
+const deleteModal       = get("delete-modal");
+const deleteModalClose  = get("delete-modal-close");
+const deleteProductName = get("delete-product-name");
+const deleteCancelBtn   = get("delete-cancel-btn");
+const deleteConfirmBtn  = get("delete-confirm-btn");
 
-const toast            = $("toast");
-const navBtns          = document.querySelectorAll(".nav-btn");
-const tabSections      = document.querySelectorAll(".tab-section");
+const saleModal        = get("sale-modal");
+const saleModalClose   = get("sale-modal-close");
+const saleProductName  = get("sale-product-name");
+const saleProductPrice = get("sale-product-price");
+const qtyMinus         = get("qty-minus");
+const qtyPlus          = get("qty-plus");
+const qtyDisplay       = get("qty-display");
+const saleRevenueEl    = get("sale-revenue");
+const saleProfitEl     = get("sale-profit");
+const saleError        = get("sale-error");
+const saleConfirmBtn   = get("sale-confirm-btn");
 
-// ══════════════════════════════════════════
-//  AUTH
-// ══════════════════════════════════════════
+const logoutModal      = get("logout-modal");
+const logoutCancelBtn  = get("logout-cancel-btn");
+const logoutConfirmBtn = get("logout-confirm-btn");
+
+const toast       = get("toast");
+const navBtns     = document.querySelectorAll(".nav-btn");
+const tabSections = document.querySelectorAll(".tab-section");
+
+// AUTH
 onAuthStateChanged(auth, user => {
   if (!user) {
     window.location.href = "index.html";
@@ -107,36 +101,42 @@ onAuthStateChanged(auth, user => {
   startListeners();
 });
 
-logoutBtn.addEventListener("click", async () => {
+logoutBtn.addEventListener("click", () => openModal(logoutModal));
+logoutCancelBtn.addEventListener("click", () => closeModal(logoutModal));
+logoutConfirmBtn.addEventListener("click", async () => {
   if (unsubProducts) unsubProducts();
   if (unsubSales)    unsubSales();
+  closeModal(logoutModal);
   await signOut(auth);
   window.location.href = "index.html";
 });
 
-// ══════════════════════════════════════════
-//  FIRESTORE LISTENERS
-// ══════════════════════════════════════════
+// FIRESTORE LISTENERS
 function startListeners() {
-  // ── Products (real-time) ──
+  // No orderBy to avoid needing a composite index - sort client-side
   const prodQ = query(
     collection(db, "products"),
-    where("userId", "==", currentUser.uid),
-    orderBy("createdAt", "desc")
+    where("userId", "==", currentUser.uid)
   );
 
   unsubProducts = onSnapshot(prodQ, snap => {
-    products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    products = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ta = a.createdAt ? a.createdAt.toMillis() : 0;
+        const tb = b.createdAt ? b.createdAt.toMillis() : 0;
+        return tb - ta;
+      });
     renderProducts(productSearch.value.trim());
     renderSalesTab(salesSearch.value.trim());
+  }, err => {
+    console.error("Products listener error:", err.message);
+    showToast("Error loading products");
   });
 
-  // ── Sales (current month, real-time) ──
   const now  = new Date();
-  const y    = now.getFullYear();
-  const m    = now.getMonth();
-  const from = new Date(y, m, 1);
-  const to   = new Date(y, m + 1, 1);
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const to   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
   const salesQ = query(
     collection(db, "sales"),
@@ -148,172 +148,122 @@ function startListeners() {
   unsubSales = onSnapshot(salesQ, snap => {
     sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderReports();
+  }, err => {
+    console.error("Sales listener error:", err.message);
   });
 
-  // Set report month label
   reportMonthLabel.textContent = now.toLocaleString("default", { month: "long", year: "numeric" });
 }
 
-// ══════════════════════════════════════════
-//  NAVIGATION
-// ══════════════════════════════════════════
+// NAVIGATION
 navBtns.forEach(btn => {
   btn.addEventListener("click", () => {
     const target = btn.dataset.tab;
     navBtns.forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
-
     tabSections.forEach(s => {
-      s.classList.toggle("active",  s.id === `tab-${target}`);
-      s.classList.toggle("hidden", s.id !== `tab-${target}`);
+      const isTarget = s.id === "tab-" + target;
+      s.classList.toggle("active", isTarget);
+      s.classList.toggle("hidden", !isTarget);
     });
-
-    // Show/hide FAB (only on products tab)
     fab.style.display = target === "products" ? "flex" : "none";
   });
 });
 
-// ══════════════════════════════════════════
-//  RENDER: PRODUCTS
-// ══════════════════════════════════════════
-function renderProducts(filter = "") {
-  const q      = filter.toLowerCase();
-  const list   = q ? products.filter(p => p.name.toLowerCase().includes(q)) : products;
-  const isEmpty = list.length === 0;
-
-  productsEmpty.classList.toggle("hidden", !isEmpty);
+// RENDER: PRODUCTS
+function renderProducts(filter) {
+  filter = (filter || "").toLowerCase();
+  const list = filter ? products.filter(p => p.name.toLowerCase().includes(filter)) : products;
+  productsEmpty.classList.toggle("hidden", list.length > 0);
   productList.innerHTML = "";
-
-  list.forEach(product => {
-    const card = buildProductCard(product);
-    productList.appendChild(card);
-  });
+  list.forEach(p => productList.appendChild(buildProductCard(p)));
 }
 
-function buildProductCard(product) {
-  const { id, name, buyPrice, sellPrice, stock } = product;
+function buildProductCard(p) {
   const card = document.createElement("div");
   card.className = "product-card";
 
-  // Stock badge style
-  let badgeClass = "";
-  let badgeLabel = `${stock} in stock`;
-  if (stock === 0)   { badgeClass = "out-of-stock"; badgeLabel = "Out of stock"; }
-  else if (stock < 20) { badgeClass = "low-stock";    badgeLabel = `Low – ${stock}`; }
+  let badgeClass = "", badgeLabel = p.stock + " in stock";
+  if (p.stock === 0)     { badgeClass = "out-of-stock"; badgeLabel = "Out of stock"; }
+  else if (p.stock < 20) { badgeClass = "low-stock";    badgeLabel = "Low - " + p.stock; }
 
-  card.innerHTML = `
-    <div class="product-card-header">
-      <span class="product-card-name" title="${escHtml(name)}">${escHtml(name)}</span>
-      <span class="stock-badge ${badgeClass}">${badgeLabel}</span>
-    </div>
-    <div class="product-card-prices">
-      <div class="price-item">
-        <span class="price-label">Buy</span>
-        <span class="price-value">$${fmt(buyPrice)}</span>
-      </div>
-      <div class="price-item">
-        <span class="price-label">Sell</span>
-        <span class="price-value sell">$${fmt(sellPrice)}</span>
-      </div>
-      <div class="price-item">
-        <span class="price-label">Margin</span>
-        <span class="price-value">$${fmt(sellPrice - buyPrice)}</span>
-      </div>
-    </div>
-    <div class="product-card-actions">
-      <button class="icon-btn icon-btn--edit" data-id="${id}">
-        <span class="material-icons-round">edit</span>
-        Edit
-      </button>
-      <button class="icon-btn icon-btn--delete" data-id="${id}">
-        <span class="material-icons-round">delete</span>
-        Delete
-      </button>
-    </div>`;
+  card.innerHTML =
+    '<div class="product-card-header">' +
+      '<span class="product-card-name" title="' + escHtml(p.name) + '">' + escHtml(p.name) + '</span>' +
+      '<span class="stock-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+    '</div>' +
+    '<div class="product-card-prices">' +
+      '<div class="price-item"><span class="price-label">Buy</span><span class="price-value">' + inr(p.buyPrice) + '</span></div>' +
+      '<div class="price-item"><span class="price-label">Sell</span><span class="price-value sell">' + inr(p.sellPrice) + '</span></div>' +
+      '<div class="price-item"><span class="price-label">Margin</span><span class="price-value">' + inr(p.sellPrice - p.buyPrice) + '</span></div>' +
+    '</div>' +
+    '<div class="product-card-actions">' +
+      '<button class="icon-btn icon-btn--edit"><span class="material-icons-round">edit</span>Edit</button>' +
+      '<button class="icon-btn icon-btn--delete"><span class="material-icons-round">delete</span>Delete</button>' +
+    '</div>';
 
-  card.querySelector(".icon-btn--edit").addEventListener("click",   () => openEditModal(id));
-  card.querySelector(".icon-btn--delete").addEventListener("click", () => openDeleteModal(id));
+  card.querySelector(".icon-btn--edit").addEventListener("click",   () => openEditModal(p.id));
+  card.querySelector(".icon-btn--delete").addEventListener("click", () => openDeleteModal(p.id));
   return card;
 }
 
-// ══════════════════════════════════════════
-//  RENDER: SALES TAB
-// ══════════════════════════════════════════
-function renderSalesTab(filter = "") {
-  const q      = filter.toLowerCase();
-  const list   = q ? products.filter(p => p.name.toLowerCase().includes(q)) : products;
-  const isEmpty = list.length === 0;
-
-  salesEmpty.classList.toggle("hidden", !isEmpty);
+// RENDER: SALES TAB
+function renderSalesTab(filter) {
+  filter = (filter || "").toLowerCase();
+  const list = filter ? products.filter(p => p.name.toLowerCase().includes(filter)) : products;
+  salesEmpty.classList.toggle("hidden", list.length > 0);
   salesList.innerHTML = "";
-
-  list.forEach(product => {
-    const card = buildSaleCard(product);
-    salesList.appendChild(card);
-  });
+  list.forEach(p => salesList.appendChild(buildSaleCard(p)));
 }
 
-function buildSaleCard(product) {
-  const { id, name, buyPrice, sellPrice, stock } = product;
+function buildSaleCard(p) {
   const card = document.createElement("div");
   card.className = "product-card";
 
-  const badgeClass = stock === 0 ? "out-of-stock" : stock < 20 ? "low-stock" : "";
-  const badgeLabel = stock === 0 ? "Out of stock" : stock < 20 ? `Low – ${stock}` : `${stock} in stock`;
+  const badgeClass = p.stock === 0 ? "out-of-stock" : p.stock < 20 ? "low-stock" : "";
+  const badgeLabel = p.stock === 0 ? "Out of stock" : p.stock < 20 ? "Low - " + p.stock : p.stock + " in stock";
 
-  card.innerHTML = `
-    <div class="product-card-header">
-      <span class="product-card-name" title="${escHtml(name)}">${escHtml(name)}</span>
-      <span class="stock-badge ${badgeClass}">${badgeLabel}</span>
-    </div>
-    <div class="product-card-prices">
-      <div class="price-item">
-        <span class="price-label">Sell</span>
-        <span class="price-value sell">$${fmt(sellPrice)}</span>
-      </div>
-      <div class="price-item">
-        <span class="price-label">Profit/unit</span>
-        <span class="price-value">$${fmt(sellPrice - buyPrice)}</span>
-      </div>
-    </div>
-    <div class="product-card-actions">
-      <button class="sale-card-btn" data-id="${id}" ${stock === 0 ? "disabled" : ""}>
-        <span class="material-icons-round" style="font-size:18px;">shopping_cart</span>
-        ${stock === 0 ? "Out of stock" : "Sell"}
-      </button>
-    </div>`;
+  card.innerHTML =
+    '<div class="product-card-header">' +
+      '<span class="product-card-name">' + escHtml(p.name) + '</span>' +
+      '<span class="stock-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+    '</div>' +
+    '<div class="product-card-prices">' +
+      '<div class="price-item"><span class="price-label">Sell</span><span class="price-value sell">' + inr(p.sellPrice) + '</span></div>' +
+      '<div class="price-item"><span class="price-label">Profit/unit</span><span class="price-value">' + inr(p.sellPrice - p.buyPrice) + '</span></div>' +
+    '</div>' +
+    '<div class="product-card-actions">' +
+      '<button class="sale-card-btn" ' + (p.stock === 0 ? "disabled" : "") + '>' +
+        '<span class="material-icons-round" style="font-size:18px">shopping_cart</span>' +
+        (p.stock === 0 ? "Out of stock" : "Sell") +
+      '</button>' +
+    '</div>';
 
-  if (stock > 0) {
-    card.querySelector(".sale-card-btn").addEventListener("click", () => openSaleModal(id));
+  if (p.stock > 0) {
+    card.querySelector(".sale-card-btn").addEventListener("click", () => openSaleModal(p.id));
   }
   return card;
 }
 
-// ══════════════════════════════════════════
-//  RENDER: REPORTS
-// ══════════════════════════════════════════
+// RENDER: REPORTS
 function renderReports() {
-  const revenue = sales.reduce((sum, s) => sum + (s.revenue || 0), 0);
-  const profit  = sales.reduce((sum, s) => sum + (s.profit  || 0), 0);
-  monthlyRevenue.textContent = `$${fmt(revenue)}`;
-  monthlyProfit.textContent  = `$${fmt(profit)}`;
+  const revenue = sales.reduce((s, x) => s + (x.revenue || 0), 0);
+  const profit  = sales.reduce((s, x) => s + (x.profit  || 0), 0);
+  monthlyRevenue.textContent = inr(revenue);
+  monthlyProfit.textContent  = inr(profit);
 }
 
-// ══════════════════════════════════════════
-//  SEARCH
-// ══════════════════════════════════════════
+// SEARCH
 productSearch.addEventListener("input", () => renderProducts(productSearch.value.trim()));
 salesSearch.addEventListener("input",   () => renderSalesTab(salesSearch.value.trim()));
 
-// ══════════════════════════════════════════
-//  PRODUCT MODAL – ADD / EDIT
-// ══════════════════════════════════════════
+// PRODUCT MODAL
 fab.addEventListener("click", openAddModal);
 
 function openAddModal() {
   editingId = null;
-  modalTitle.textContent       = "Add Product";
-  modalSubmitBtn.textContent   = "Save Product";
+  modalTitle.textContent     = "Add Product";
+  modalSubmitBtn.textContent = "Save Product";
   productForm.reset();
   hideError(formError);
   openModal(productModal);
@@ -344,38 +294,36 @@ productForm.addEventListener("submit", async e => {
   const sellPrice = parseFloat(inputSell.value);
   const stock     = parseInt(inputStock.value, 10);
 
-  if (!name)                  return showError(formError, "Product name is required.");
-  if (isNaN(buyPrice)  || buyPrice  < 0) return showError(formError, "Enter a valid buy price.");
-  if (isNaN(sellPrice) || sellPrice < 0) return showError(formError, "Enter a valid sell price.");
-  if (isNaN(stock)     || stock     < 0) return showError(formError, "Enter a valid stock quantity.");
+  if (!name)                              return showError(formError, "Product name is required.");
+  if (isNaN(buyPrice)  || buyPrice  < 0)  return showError(formError, "Enter a valid buy price.");
+  if (isNaN(sellPrice) || sellPrice < 0)  return showError(formError, "Enter a valid sell price.");
+  if (isNaN(stock)     || stock     < 0)  return showError(formError, "Enter a valid stock quantity.");
 
-  modalSubmitBtn.disabled = true;
-  modalSubmitBtn.textContent = "Saving…";
+  modalSubmitBtn.disabled    = true;
+  modalSubmitBtn.textContent = "Saving...";
 
   try {
     if (editingId) {
       await updateDoc(doc(db, "products", editingId), { name, buyPrice, sellPrice, stock });
-      showToast("Product updated ✓");
+      showToast("Product updated");
     } else {
       await addDoc(collection(db, "products"), {
         userId: currentUser.uid,
         name, buyPrice, sellPrice, stock,
         createdAt: serverTimestamp()
       });
-      showToast("Product added ✓");
+      showToast("Product added");
     }
     closeModal(productModal);
   } catch (err) {
-    showError(formError, "Error saving product: " + err.message);
+    showError(formError, "Error: " + err.message);
   } finally {
     modalSubmitBtn.disabled    = false;
     modalSubmitBtn.textContent = editingId ? "Update Product" : "Save Product";
   }
 });
 
-// ══════════════════════════════════════════
-//  DELETE MODAL
-// ══════════════════════════════════════════
+// DELETE MODAL
 function openDeleteModal(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
@@ -389,14 +337,14 @@ deleteCancelBtn.addEventListener("click",   () => closeModal(deleteModal));
 
 deleteConfirmBtn.addEventListener("click", async () => {
   if (!deleteTargetId) return;
-  deleteConfirmBtn.disabled     = true;
-  deleteConfirmBtn.textContent  = "Deleting…";
+  deleteConfirmBtn.disabled    = true;
+  deleteConfirmBtn.textContent = "Deleting...";
   try {
     await deleteDoc(doc(db, "products", deleteTargetId));
     showToast("Product deleted");
     closeModal(deleteModal);
   } catch (err) {
-    alert("Error deleting: " + err.message);
+    alert("Error: " + err.message);
   } finally {
     deleteConfirmBtn.disabled    = false;
     deleteConfirmBtn.textContent = "Delete";
@@ -404,15 +352,13 @@ deleteConfirmBtn.addEventListener("click", async () => {
   }
 });
 
-// ══════════════════════════════════════════
-//  SALE MODAL
-// ══════════════════════════════════════════
+// SALE MODAL
 function openSaleModal(id) {
   saleProduct = products.find(x => x.id === id);
   if (!saleProduct) return;
   saleQty = 1;
   saleProductName.textContent  = saleProduct.name;
-  saleProductPrice.textContent = `Sell: $${fmt(saleProduct.sellPrice)} | Buy: $${fmt(saleProduct.buyPrice)}`;
+  saleProductPrice.textContent = "Sell: " + inr(saleProduct.sellPrice) + "  |  Buy: " + inr(saleProduct.buyPrice);
   updateSaleSummary();
   hideError(saleError);
   openModal(saleModal);
@@ -425,28 +371,21 @@ qtyMinus.addEventListener("click", () => {
 });
 
 qtyPlus.addEventListener("click", () => {
-  if (saleProduct && saleQty < saleProduct.stock) {
-    saleQty++;
-    updateSaleSummary();
-  }
+  if (saleProduct && saleQty < saleProduct.stock) { saleQty++; updateSaleSummary(); }
 });
 
 function updateSaleSummary() {
-  qtyDisplay.textContent = saleQty;
-  const revenue = (saleProduct.sellPrice * saleQty);
-  const profit  = ((saleProduct.sellPrice - saleProduct.buyPrice) * saleQty);
-  saleRevenueEl.textContent = `$${fmt(revenue)}`;
-  saleProfitEl.textContent  = `$${fmt(profit)}`;
+  qtyDisplay.textContent    = saleQty;
+  saleRevenueEl.textContent = inr(saleProduct.sellPrice * saleQty);
+  saleProfitEl.textContent  = inr((saleProduct.sellPrice - saleProduct.buyPrice) * saleQty);
 }
 
 saleConfirmBtn.addEventListener("click", async () => {
   if (!saleProduct) return;
-  if (saleQty < 1 || saleQty > saleProduct.stock) {
-    return showError(saleError, "Invalid quantity.");
-  }
+  if (saleQty < 1 || saleQty > saleProduct.stock) return showError(saleError, "Invalid quantity.");
 
   saleConfirmBtn.disabled    = true;
-  saleConfirmBtn.textContent = "Processing…";
+  saleConfirmBtn.textContent = "Processing...";
   hideError(saleError);
 
   const newStock = saleProduct.stock - saleQty;
@@ -454,34 +393,27 @@ saleConfirmBtn.addEventListener("click", async () => {
   const profit   = (saleProduct.sellPrice - saleProduct.buyPrice) * saleQty;
 
   try {
-    // Reduce stock
     await updateDoc(doc(db, "products", saleProduct.id), { stock: newStock });
-
-    // Record sale
     await addDoc(collection(db, "sales"), {
-      userId:    currentUser.uid,
+      userId: currentUser.uid,
       productId: saleProduct.id,
       productName: saleProduct.name,
-      quantity:  saleQty,
-      revenue,
-      profit,
+      quantity: saleQty,
+      revenue, profit,
       createdAt: serverTimestamp()
     });
-
-    showToast(`Sale recorded – $${fmt(revenue)} revenue`);
+    showToast("Sale recorded - " + inr(revenue) + " revenue");
     closeModal(saleModal);
     saleProduct = null;
   } catch (err) {
-    showError(saleError, "Error completing sale: " + err.message);
+    showError(saleError, "Error: " + err.message);
   } finally {
     saleConfirmBtn.disabled    = false;
     saleConfirmBtn.textContent = "Complete Sale";
   }
 });
 
-// ══════════════════════════════════════════
-//  MODAL HELPERS
-// ══════════════════════════════════════════
+// MODAL HELPERS
 function openModal(modal) {
   modal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
@@ -491,16 +423,11 @@ function closeModal(modal) {
   document.body.style.overflow = "";
 }
 
-// Close on backdrop click
-[productModal, deleteModal, saleModal].forEach(modal => {
-  modal.addEventListener("click", e => {
-    if (e.target === modal) closeModal(modal);
-  });
+[productModal, deleteModal, saleModal, logoutModal].forEach(modal => {
+  modal.addEventListener("click", e => { if (e.target === modal) closeModal(modal); });
 });
 
-// ══════════════════════════════════════════
-//  TOAST
-// ══════════════════════════════════════════
+// TOAST
 let toastTimer;
 function showToast(msg) {
   toast.textContent = msg;
@@ -513,11 +440,10 @@ function showToast(msg) {
   }, 2800);
 }
 
-// ══════════════════════════════════════════
-//  UTILS
-// ══════════════════════════════════════════
-function fmt(n) {
-  return (parseFloat(n) || 0).toFixed(2);
+// UTILS
+function inr(n) {
+  const val = parseFloat(n) || 0;
+  return "\u20B9" + val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function escHtml(str) {
@@ -530,6 +456,7 @@ function showError(el, msg) {
   el.textContent = msg;
   el.classList.remove("hidden");
 }
+
 function hideError(el) {
   el.textContent = "";
   el.classList.add("hidden");
